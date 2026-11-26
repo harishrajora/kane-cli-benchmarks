@@ -1,0 +1,9 @@
+# Run outputs: NDJSON logs, evidence packs, transcripts. Large and machine-specific.
+results/
+
+# Local secrets (credentials for apps or tools)
+.env
+*.local
+
+# OS noise
+.DS_Store
