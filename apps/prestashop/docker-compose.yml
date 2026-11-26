@@ -1,0 +1,57 @@
+# PrestaShop app under test.
+# Images are pinned by tag AND digest so every run uses byte-identical images.
+# Secrets come from .env (gitignored); see .env.example for the variables.
+
+name: bench-prestashop
+
+services:
+  prestashop:
+    # PrestaShop 9.2.1, Apache variant (multi-arch: amd64 + arm64), default front-office theme
+    image: prestashop/prestashop:9.2.1-apache@sha256:ad8ce05927bb28f5fb4da08a278dea43e10a1fed032e666baa27214303cfc8c9
+    environment:
+      # First start installs the shop automatically, with demo products, in US English and USD.
+      PS_INSTALL_AUTO: "1"
+      PS_DOMAIN: "localhost:8080"
+      PS_LANGUAGE: "en"
+      PS_COUNTRY: "us"
+      PS_ENABLE_SSL: "0"
+      PS_DEV_MODE: "0"
+      # The admin folder must stay "admin" here: PrestaShop 9.2's installer renames it itself
+      # (to a random name), and fails if the image renames it first. post-install.sh then gives
+      # it the fixed name admin-bench so the back-office URL is the same on every machine.
+      PS_FOLDER_INSTALL: "install-done"
+      ADMIN_MAIL: "${ADMIN_EMAIL}"
+      ADMIN_PASSWD: "${ADMIN_PASSWORD}"
+      DB_SERVER: "db"
+      DB_NAME: "prestashop"
+      DB_USER: "prestashop"
+      DB_PASSWD: "${DB_PASSWORD}"
+      DB_PREFIX: "ps_"
+    ports:
+      # Bound to localhost only: not reachable from the network.
+      - "127.0.0.1:8080:80"
+    volumes:
+      - prestashop_html:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    # MySQL 8.4.13 (LTS)
+    image: mysql:8.4.13@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "prestashop"
+      MYSQL_USER: "prestashop"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - prestashop_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  prestashop_html:
+  prestashop_db:

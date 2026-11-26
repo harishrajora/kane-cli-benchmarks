@@ -1,0 +1,95 @@
+{
+  "_about": "PrestaShop seed data for the Kane CLI benchmark. Applied by seed.php through PrestaShop's own classes (the same code the back office runs). All people and addresses are fictional. Products are PrestaShop's demo catalogue, kept as installed except where listed here.",
+
+  "shop": {
+    "name": "Northwind Store",
+    "restore_cart_on_login": true
+  },
+
+  "tax": {
+    "group_name": "Bench Sales Tax (8%)",
+    "tax_name": "US Sales Tax",
+    "rate": 8.0,
+    "country_iso": "US",
+    "apply_to_all_products": true
+  },
+
+  "carriers": {
+    "disable_existing": true,
+    "create": [
+      {
+        "name": "Standard",
+        "delay": "Delivery in 3-5 business days",
+        "ranges": [
+          { "from": 0, "to": 50, "price": 5.00 },
+          { "from": 50, "to": 1000000, "price": 0.00 }
+        ]
+      },
+      {
+        "name": "Express",
+        "delay": "Next business day",
+        "ranges": [
+          { "from": 0, "to": 1000000, "price": 15.00 }
+        ]
+      }
+    ],
+    "_note": "Shipping itself is not taxed. Whether the $50 free-shipping threshold compares the total before or after tax, and how an order of exactly $50.00 is treated, is measured after seeding and recorded in the report."
+  },
+
+  "products": [
+    { "id": 8,  "name": "Mug Today is a good day",     "quantity": 0, "_why": "Out of stock; out-of-stock orders are refused (shop default)" },
+    { "id": 7,  "name": "Mug The adventure begins",    "quantity": 3, "_why": "Low stock: only 3 left" },
+    { "id": 6,  "name": "Mug The best is yet to come", "minimal_quantity": 2, "_why": "Must be bought in quantities of at least 2" }
+  ],
+
+  "vouchers": [
+    { "code": "BENCH10", "name": "10% off everything", "percent": 10,
+      "valid_from": "2026-01-01", "valid_to": "2030-12-31" },
+    { "code": "SAVE5",   "name": "$5 off orders over $30", "amount": 5.00, "minimum_amount": 30.00,
+      "valid_from": "2026-01-01", "valid_to": "2030-12-31" },
+    { "code": "EXPIRED", "name": "Summer sale (ended)", "percent": 15,
+      "valid_from": "2026-06-01", "valid_to": "2026-06-30" }
+  ],
+
+  "groups": [
+    { "key": "wholesale", "name": "Wholesale", "discount_percent": 15 }
+  ],
+
+  "demo_customer": {
+    "email": "pub@prestashop.com",
+    "action": "deactivate and set a random password; its 5 demo orders are kept (PrestaShop has no supported order deletion)"
+  },
+
+  "customers": [
+    {
+      "key": "casey", "firstname": "Casey", "lastname": "Customer", "email": "casey.customer@bench.local",
+      "groups": ["Customer"],
+      "address": { "alias": "Home", "address1": "120 Harbor Street", "city": "Springfield", "postcode": "62701",
+                   "state_iso": "IL", "phone": "555-0140" }
+    },
+    {
+      "key": "wes", "firstname": "Wes", "lastname": "Wholesale", "email": "wes.wholesale@bench.local",
+      "groups": ["wholesale"],
+      "address": { "alias": "Warehouse", "address1": "9 Dock Road", "city": "Portland", "postcode": "97201",
+                   "state_iso": "OR", "phone": "555-0177" }
+    }
+  ],
+
+  "orders": [
+    { "customer": "casey", "carrier": "Standard", "status": "Delivered",
+      "items": [ { "product_id": 2, "size": "M", "quantity": 1 }, { "product_id": 6, "quantity": 2 } ] },
+    { "customer": "casey", "carrier": "Express", "status": "Shipped",
+      "items": [ { "product_id": 3, "quantity": 1 } ] },
+    { "customer": "wes", "carrier": "Standard", "status": "Awaiting bank wire payment",
+      "items": [ { "product_id": 16, "quantity": 4 }, { "product_id": 10, "quantity": 2 } ] }
+  ],
+
+  "saved_carts": [
+    { "customer": "casey", "_why": "Should reappear when Casey logs in",
+      "items": [ { "product_id": 1, "size": "L", "color": "Black", "quantity": 2 }, { "product_id": 7, "quantity": 1 } ] }
+  ],
+
+  "employees": [
+    { "firstname": "Sam", "lastname": "Sales", "email": "sam.sales@bench.local", "profile": "Salesman" }
+  ]
+}

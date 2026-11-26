@@ -7,3 +7,6 @@ results/
 
 # OS noise
 .DS_Store
+
+# BookStack reset point: machine-specific (password hashes for this .env)
+apps/bookstack/snapshot/

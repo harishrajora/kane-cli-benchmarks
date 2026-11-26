@@ -4,7 +4,7 @@
   "roles": [
     {
       "key": "hr",
-      "display_name": "HR",
+      "display_name": "HR Team",
       "description": "People team. Grants access to the HR Policies book; combined with Viewer for everything else.",
       "permissions": []
     }
