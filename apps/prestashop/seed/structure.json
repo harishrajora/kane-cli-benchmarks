@@ -6,6 +6,11 @@
     "restore_cart_on_login": true
   },
 
+  "disable_modules": {
+    "_why": "Cloud and marketing modules that call outside services. Disabled (not uninstalled) so runs never depend on PrestaShop's servers and checkout shows only the built-in payment options. Re-enable with: bin/console prestashop:module enable <name>",
+    "names": ["ps_accounts", "ps_eventbus", "ps_distributionapiclient", "ps_mbo", "ps_checkout", "ps_facebook", "psxmarketingwithgoogle"]
+  },
+
   "tax": {
     "group_name": "Bench Sales Tax (8%)",
     "tax_name": "US Sales Tax",

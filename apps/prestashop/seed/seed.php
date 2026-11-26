@@ -10,7 +10,16 @@
 
 use PrestaShop\PrestaShop\Core\Crypto\Hashing;
 
+// Boot PrestaShop the way its own back office does (admin-bench/index.php): config, then the admin
+// Symfony kernel. Cart and order code needs the kernel's service container, even from the command line.
+define('_PS_ADMIN_DIR_', '/var/www/html/admin-bench');
 require '/var/www/html/config/config.inc.php';
+define('_PS_APP_ID_', AdminKernel::APP_ID);
+require_once '/var/www/html/autoload.php';
+(new Symfony\Component\Dotenv\Dotenv())->usePutenv(false)->loadEnv('/var/www/html/.env');
+global $kernel;
+$kernel = new AdminKernel(_PS_ENV_, _PS_MODE_DEV_);
+$kernel->boot();
 
 $spec = json_decode(file_get_contents(__DIR__ . '/structure.json'), true);
 $password = getenv('USER_PASSWORD') ?: exit("USER_PASSWORD is not set\n");
@@ -74,7 +83,7 @@ $rule->id_tax = $tax->id;
 $rule->description = '';
 save($rule, 'tax rule');
 $n = 0;
-foreach (Product::getSimpleProducts($idLang) as $row) {
+foreach (Db::getInstance()->executeS('SELECT id_product FROM ' . _DB_PREFIX_ . 'product ORDER BY id_product') as $row) {
     $p = new Product((int) $row['id_product']);
     $p->id_tax_rules_group = $group->id;
     save($p, "product {$row['id_product']}");
@@ -129,22 +138,20 @@ foreach ($spec['carriers']['create'] as $cdef) {
     save($car, "carrier {$cdef['name']}");
     $car->addZone($usZone);
     $car->setGroups($allGroups);
+    // Same as the back office's carrier wizard: create the ranges (each auto-adds a $0 price row),
+    // delete those placeholder rows, then write the real prices.
+    $prices = [];
     foreach ($cdef['ranges'] as $r) {
         $range = new RangePrice();
         $range->id_carrier = $car->id;
         $range->delimiter1 = $r['from'];
         $range->delimiter2 = $r['to'];
         save($range, 'price range');
-        $d = new Delivery();
-        $d->id_carrier = $car->id;
-        $d->id_range_price = $range->id;
-        $d->id_range_weight = 0;
-        $d->id_zone = $usZone;
-        $d->price = $r['price'];
-        $d->id_shop = null;
-        $d->id_shop_group = null;
-        save($d, 'delivery price');
+        $prices[] = ['id_range_price' => (int) $range->id, 'id_range_weight' => null,
+                     'id_carrier' => (int) $car->id, 'id_zone' => $usZone, 'price' => $r['price']];
     }
+    $car->deleteDeliveryPrice('range_price');
+    $car->addDeliveryPrice($prices, true) ?: fail("could not set prices for carrier {$cdef['name']}");
     $carrierId[$cdef['name']] = (int) $car->id;
     say("carrier  {$cdef['name']}");
 }
@@ -231,12 +238,15 @@ foreach ($spec['customers'] as $c) {
 function attributeId(int $productId, array $item, int $idLang): int {
     $want = array_filter(['Size' => $item['size'] ?? null, 'Color' => $item['color'] ?? null]);
     if (!$want) { return 0; }
-    $byCombo = [];
-    foreach ((new Product($productId))->getAttributeCombinations($idLang, false) as $row) {
-        $byCombo[$row['id_product_attribute']][$row['group_name']] = $row['attribute_name'];
-    }
-    foreach ($byCombo as $ipa => $attrs) {
-        if (array_intersect_assoc($want, $attrs) == $want) { return (int) $ipa; }
+    // getAttributeCombinations() lists one attribute group per combination, so read each
+    // combination's full attribute list and match on the values (e.g. "L" and "Black").
+    $seen = [];
+    foreach ((new Product($productId))->getAttributeCombinations($idLang) as $row) {
+        $ipa = (int) $row['id_product_attribute'];
+        if (isset($seen[$ipa])) { continue; }
+        $seen[$ipa] = true;
+        $names = array_column((new Combination($ipa))->getAttributesName($idLang), 'name');
+        if (!array_diff(array_values($want), $names)) { return $ipa; }
     }
     fail("no combination of product $productId matching " . json_encode($want));
 }
@@ -253,6 +263,17 @@ function makeCart(Customer $cu, Address $a, int $carrier, array $items, int $idL
     $cart->id_shop_group = 1;
     $cart->id_carrier = $carrier;
     $cart->secure_key = $cu->secure_key;
+    // Storefront carts always belong to a visitor ("guest") record, and PrestaShop only restores a
+    // saved cart on login when it has one. Reuse the customer's guest record, or create it.
+    $idGuest = (int) Guest::getFromCustomer($cu->id);
+    if (!$idGuest) {
+        $guest = new Guest();
+        $guest->id_customer = $cu->id;
+        $guest->accept_language = 'en';
+        save($guest, "guest for {$cu->email}");
+        $idGuest = (int) $guest->id;
+    }
+    $cart->id_guest = $idGuest;
     save($cart, 'cart');
     $ctx->cart = $cart;
     $ctx->customer = $cu;

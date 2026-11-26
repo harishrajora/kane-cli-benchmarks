@@ -2,7 +2,7 @@
 
 The single source of truth for this benchmark: what was decided, how everything was set up, and the results. Every step is recorded here as it happens. If it is not in this file, it is not part of the benchmark.
 
-**Status (2026-11-26):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is installed and running with a benchmark admin account; its seed data is not designed yet. Bugs, tests and harness are not started. No benchmark runs yet.
+**Status (2026-11-26):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is running, seeded and verified to the cent, with a 5–6 second reset. Bugs, tests and harness are not started. No benchmark runs yet.
 
 ## Contents
 
@@ -33,6 +33,7 @@ Newest first.
 
 | Date | Decision | Reason |
 | --- | --- | --- |
+| 2026-11-26 | Disable PrestaShop's seven cloud and marketing modules (not uninstall) | Runs must not depend on outside services; avoids false fails from slow or failing third-party calls; checkout shows only built-in payments |
 | 2026-11-26 | PrestaShop seed: `seed.php` using PrestaShop's own classes, not raw SQL or the Webservice API | Raw SQL bypasses validation and could plant accidental bugs that skew false-fail counts; the Webservice API cannot create reliable orders or staff permissions and would need switching on |
 | 2026-11-26 | PrestaShop seed: cart scenarios included (saved cart, quantity rules, vouchers); no minimum order amount | The cart is where totals are calculated, the core of false-pass checks |
 | 2026-11-26 | Keep PrestaShop's 5 demo orders; minimum (not maximum) quantity rule | No supported order deletion; no built-in maximum quantity |
@@ -192,8 +193,9 @@ E-commerce platform ([prestashop.com](https://prestashop.com/)): catalogue, cart
 | Stop | `docker compose stop` in `apps/prestashop` |
 | Admin login | `admin@bench.local`; password in `.env` as `ADMIN_PASSWORD`. Set at install, so PrestaShop's public demo admin login never exists. |
 | Install settings | Language English, country United States, demo products installed, SSL off |
-| Seed data | Defined in `apps/prestashop/seed/`; not yet loaded (see below) |
-| Reset | Not yet created |
+| Seed data | Loaded 2026-11-26 by `apps/prestashop/seed.sh` (see below) |
+| Reset | `apps/prestashop/reset.sh` restores the post-seed snapshot in 5–6 seconds (see below) |
+| Rebuild from scratch | `docker compose down -v`, `docker compose up -d`, wait for the install, `./post-install.sh`, `./seed.sh`, `./snapshot.sh` (about 2 minutes) |
 
 **Install issue and fix:** the image's option to rename the back-office folder (`PS_FOLDER_ADMIN`) breaks PrestaShop 9.2.1's installer: the installer expects the folder to still be called `admin` and fails with "The target directory /var/www/html/admin-dev does not exist". The fix leaves the folder alone during install (the installer renames it to a random name), then `post-install.sh` renames it to the fixed `admin-bench` and clears the cache, so the back-office URL is identical on every machine.
 
@@ -213,7 +215,7 @@ Applied by `apps/prestashop/seed.sh`, which runs `seed/seed.php` inside the cont
 | Products | The 19 demo products and 9 categories, prices as installed |
 | Stock and quantity rules | "Mug Today is a good day": out of stock (orders refused). "Mug The adventure begins": 3 left. "Mug The best is yet to come": minimum quantity 2 |
 | Tax | One rule, "Bench Sales Tax (8%)", for every US state, on all 19 products (replaces the installer's per-state rules, which applied Florida 6% to all products) |
-| Shipping | Existing carriers disabled. Standard: $5, free from $50. Express: $15. Shipping not taxed |
+| Shipping | Existing carriers disabled. Standard: $5, free from $50 **after tax** (measured). Express: $15. Shipping not taxed |
 | Vouchers | `BENCH10` 10% off; `SAVE5` $5 off orders over $30 (before tax); `EXPIRED` 15% off, ended 2026-06-30 |
 | Customer groups | Customer (built in); Wholesale, 15% off all products |
 | Customers | Casey Customer (Springfield, IL; Customer group); Wes Wholesale (Portland, OR; Wholesale group). Demo customer `pub@prestashop.com` deactivated with a random password |
@@ -224,6 +226,64 @@ Applied by `apps/prestashop/seed.sh`, which runs `seed/seed.php` inside the cont
 **Why the demo orders are kept:** PrestaShop has no supported way to delete orders. The base delete removes only the main order row and leaves line items, history and invoices behind, which would make the data inconsistent. Kept on the deactivated demo customer, they act as other customers' orders in the back office.
 
 **Why minimum quantity instead of maximum:** PrestaShop has no built-in maximum quantity per product (it needs an add-on module); a built-in minimum quantity gives the same kind of quantity-validation bug.
+
+**Demo discounts already in the catalogue:** "Hummingbird printed sweater" and "Hummingbird printed t-shirt" carry a 20% demo price reduction (sweater $35.90 → $28.72, t-shirt $23.90 → $19.12). They were left as installed; tests must expect the reduced prices.
+
+**Order references are random** (e.g. `NQYIYPSSO`): PrestaShop generates them, so they differ on every rebuild. Tests must find orders by customer, date or total, never by reference.
+
+**Seeding runs (2026-11-26).** Each failed attempt was discarded with a clean reinstall, so the final shop comes from one uninterrupted run:
+
+1. Stopped at the first order: cart code needs PrestaShop's Symfony kernel, which a command-line script must start itself. Fixed by booting the admin kernel exactly as the back office does.
+2. Stopped at the saved cart: the size/colour lookup returned only the size. Fixed by reading each combination's full attribute list.
+3. Completed, but the Express order had $0 shipping: creating a price range auto-adds a $0 shop-level price that overrode the real one. Fixed by replacing prices the way the back office's carrier wizard does. (The order total was correct for what PrestaShop had been told; the seed had set the prices up wrongly.)
+4. Completed, but the saved cart was not restored on login: PrestaShop only restores carts linked to a visitor ("guest") record, which storefront carts always have. Fixed by linking seeded carts to the customer's guest record.
+5. Final run: completed with all checks passing.
+
+**Verification** (`apps/prestashop/verify.sh` runs `seed/verify.php`, which builds throwaway carts through PrestaShop's own cart code, then resets the shop). All 22 checks passed on the final seed:
+
+| Scenario | Expected and measured |
+| --- | --- |
+| 1 mug ($11.90), Standard | Shipping $5.00; total $17.85 |
+| 4 mugs: $47.60 before tax, $51.41 after | Shipping $0.00: the free-shipping threshold uses the total after tax |
+| 5 mugs ($59.50) | Shipping $0.00 |
+| 2 posters ($58.00), Express | Shipping $15.00; total $77.64 |
+| Same cart + `BENCH10` | Discount $6.26; total $71.38 |
+| Same cart + `SAVE5` | Total $72.64 |
+| `SAVE5` on $23.80 | Refused: "The minimum amount to benefit from this promo code is $30.00." |
+| `EXPIRED` | Refused: "This voucher has expired" |
+| Wes, 1 poster ($29.00), Standard | Products $24.65 (15% off); total $31.62 |
+| Out-of-stock mug | Refused |
+| 4 of the mug with 3 left | Refused |
+| 1 of the minimum-2 mug / 2 of it | Refused / accepted |
+
+Seeded orders, checked by hand: Casey Delivered $56.72 (sweater at $28.72 + 2 mugs = $52.52, free shipping, + 8%); Casey Shipped $46.32 ($29.00 + 8% + $15.00 Express); Wes $82.07 ($89.40 − 15% = $75.99, free shipping, + 8%).
+
+**Logins (via the storefront and back-office login forms):** Casey and Wes reach "My account"; the demo customer is refused; Sam Sales lands on the Orders page. **Saved cart:** after Casey logs in, the cart shows 2 × t-shirt ($38.24) and 1 × mug ($11.90): subtotal $50.14, tax $4.01, shipping $0.00, total $54.15.
+
+#### Reset
+
+| Script | What it does |
+| --- | --- |
+| `apps/prestashop/snapshot.sh` | Run once after seeding. Saves a full database dump to `apps/prestashop/snapshot/` (gitignored, like BookStack's). The seed changes no files, so the database is the whole state. |
+| `apps/prestashop/reset.sh` | Drops and restores the database, then clears PrestaShop's cache. Run before every test. Every test also starts with a fresh browser. |
+
+Snapshot taken 2026-11-26: 1.0 MB of SQL. **Reset test:** after the verification carts and a test login, reset returned the shop to the snapshot exactly (9 carts, 8 orders, 4 customers, 4 guest records) in 5–6 seconds.
+
+**Cloud and marketing modules disabled.** The demo install activates seven modules that connect to outside services. `seed.sh` disables them with PrestaShop's own module manager (`bin/console prestashop:module disable`); they stay installed and can be re-enabled with `enable`. The list is in `seed/structure.json`.
+
+| Module | What it does |
+| --- | --- |
+| `ps_accounts` | Links the shop to a PrestaShop cloud account |
+| `ps_eventbus` | Syncs shop data to PrestaShop's cloud services |
+| `ps_distributionapiclient` | Fetches module updates from PrestaShop's distribution API |
+| `ps_mbo` | Marketplace content in the back office |
+| `ps_checkout` | PayPal payments |
+| `ps_facebook` | Facebook marketing |
+| `psxmarketingwithgoogle` | Google marketing |
+
+Why: an outside service that is slow or fails could hang a page or show an error banner, which a tool would rightly report as FAIL on the clean build and we would wrongly count as a false fail. It also keeps checkout to the built-in payment options and stops benchmark runs from calling outside servers.
+
+Verified after a full rebuild: all seven inactive; storefront and back-office dashboard load with no errors; checkout offers Casey and Wes exactly bank wire, check and cash on delivery (no PayPal); all 22 cart checks pass. The snapshot was retaken after this rebuild (2026-11-26, 1.0 MB).
 
 ## 5. Seeded bugs
 
@@ -247,7 +307,9 @@ Newest first.
 
 | Date | Step | What was done |
 | --- | --- | --- |
-| 2026-11-26 | PrestaShop seed (prepared) | Wrote `seed/structure.json`, `seed/seed.php` and `seed.sh`; syntax-checked with the container's PHP. Not run yet: awaiting review. |
+| 2026-11-26 | PrestaShop modules | Added module disabling to `seed.sh`; full rebuild from scratch (install, post-install, seed, snapshot) succeeded; verified modules off, pages load, payment options, all 22 cart checks |
+| 2026-11-26 | PrestaShop seed, verify, reset | Seeded after four fixes, each followed by a clean reinstall; verified 22 cart checks to the cent, logins and the saved cart; wrote `verify.sh`, `snapshot.sh`, `reset.sh`; took the snapshot; reset tested |
+| 2026-11-26 | PrestaShop seed (prepared) | Wrote `seed/structure.json`, `seed/seed.php` and `seed.sh`; syntax-checked with the container's PHP |
 | 2026-11-26 | 2d PrestaShop running | Chose PrestaShop 9.2.1 + MySQL 8.4.13; first auto-install failed (admin folder renamed too early), removed it and its volumes, reinstalled with the fix and `post-install.sh`; verified shop, back office and admin login |
 | 2026-11-26 | 3 Seed, verify, reset | Seeded BookStack (role renamed HR → HR Team after a validation error); verified counts, permissions per user, links and images; took the snapshot; wrote and tested `reset.sh`. Screenshots skipped: the Chrome extension was not connected. |
 | 2026-11-26 | 3 Seed data (prepared) | Created the BookStack API token; wrote `seed/structure.json`, 31 page files plus 6 earlier versions, 3 generated images, 2 attachments and `seed/seed.py`. |

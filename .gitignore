@@ -10,3 +10,6 @@ results/
 
 # BookStack reset point: machine-specific (password hashes for this .env)
 apps/bookstack/snapshot/
+
+# PrestaShop reset point: machine-specific (password hashes for this .env)
+apps/prestashop/snapshot/
