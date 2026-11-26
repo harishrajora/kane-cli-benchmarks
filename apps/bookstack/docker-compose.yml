@@ -1,0 +1,49 @@
+# BookStack app under test.
+# Images are pinned by tag AND digest so every run uses byte-identical images.
+# Secrets come from .env (gitignored); see .env.example for the variables.
+
+name: bench-bookstack
+
+services:
+  bookstack:
+    # BookStack v26.09.3, linuxserver build ls301 (multi-arch: amd64 + arm64)
+    image: lscr.io/linuxserver/bookstack:v26.09.3-ls301@sha256:2ab643f9bce3e29b3347b595e369977eea3a40cef72d887fce635faf1cea3abc
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "UTC"
+      APP_URL: "http://localhost:6875"
+      APP_KEY: "${APP_KEY}"
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_DATABASE: "bookstack"
+      DB_USERNAME: "bookstack"
+      DB_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      # Bound to localhost only: not reachable from the network.
+      - "127.0.0.1:6875:80"
+    volumes:
+      - bookstack_config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    # MariaDB 11.8.9 (LTS)
+    image: mariadb:11.8.9@sha256:e1d5495f445654134f226f55a41ce0da227116f6f27f283101f405c794d841fc
+    environment:
+      MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+      MARIADB_DATABASE: "bookstack"
+      MARIADB_USER: "bookstack"
+      MARIADB_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - bookstack_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  bookstack_config:
+  bookstack_db:

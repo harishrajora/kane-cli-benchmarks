@@ -1,0 +1,145 @@
+{
+  "_about": "BookStack seed data for the Kane CLI benchmark. All content is fictional. Page bodies live in content/<book>/<page>.md. Created by seed.py through the BookStack REST API.",
+
+  "roles": [
+    {
+      "key": "hr",
+      "display_name": "HR",
+      "description": "People team. Grants access to the HR Policies book; combined with Viewer for everything else.",
+      "permissions": []
+    }
+  ],
+
+  "users": [
+    { "key": "erin",  "name": "Erin Editor",  "email": "erin.editor@bench.local",  "roles": ["Editor"] },
+    { "key": "ethan", "name": "Ethan Editor", "email": "ethan.editor@bench.local", "roles": ["Editor"] },
+    { "key": "vera",  "name": "Vera Viewer",  "email": "vera.viewer@bench.local",  "roles": ["Viewer"] },
+    { "key": "hana",  "name": "Hana HR",      "email": "hana.hr@bench.local",      "roles": ["Viewer", "HR"] }
+  ],
+
+  "shelves": [
+    { "name": "Engineering", "description": "Technical documentation for the Northwind platform.", "books": ["api-guide", "deployment-runbook"] },
+    { "name": "Company",     "description": "Joining the company and how we work.",                "books": ["onboarding", "hr-policies"] },
+    { "name": "Product",     "description": "What we shipped and what comes next.",                "books": ["release-notes", "roadmap"] }
+  ],
+
+  "books": [
+    {
+      "key": "api-guide",
+      "name": "API Guide",
+      "description": "Reference for the Northwind public REST API.",
+      "tags": [["team", "backend"], ["audience", "external"]],
+      "contents": [
+        { "chapter": "Getting Started", "description": "First steps with the API.", "pages": [
+          { "key": "getting-started", "title": "Getting Started", "tags": [["status", "published"]] },
+          { "key": "authentication", "title": "Authentication", "tags": [["status", "published"]] },
+          { "key": "rate-limits", "title": "Rate Limits", "tags": [["status", "published"], ["priority", "high"]],
+            "revisions": ["rate-limits.v1.md", "rate-limits.v2.md"] }
+        ]},
+        { "chapter": "Endpoints", "description": "Resources exposed by the API.", "pages": [
+          { "key": "users-endpoint", "title": "Users Endpoint", "tags": [["status", "published"]] },
+          { "key": "orders-endpoint", "title": "Orders Endpoint", "tags": [["status", "published"]] },
+          { "key": "webhooks", "title": "Webhooks", "tags": [["status", "draft"]] }
+        ]},
+        { "chapter": "Errors", "description": "What can go wrong and what it means.", "pages": [
+          { "key": "error-codes", "title": "Error Codes", "tags": [["status", "published"]] }
+        ]}
+      ]
+    },
+    {
+      "key": "deployment-runbook",
+      "name": "Deployment Runbook",
+      "description": "How we deploy, roll back and respond to incidents.",
+      "tags": [["team", "platform"], ["audience", "internal"]],
+      "contents": [
+        { "chapter": "Environments", "description": "Where the platform runs.", "pages": [
+          { "key": "staging", "title": "Staging", "tags": [] },
+          { "key": "production", "title": "Production", "tags": [["priority", "high"]],
+            "images": ["architecture.png"] }
+        ]},
+        { "chapter": "Procedures", "description": "Step-by-step operational procedures.", "pages": [
+          { "key": "release-checklist", "title": "Release Checklist", "tags": [["priority", "high"]],
+            "revisions": ["release-checklist.v1.md", "release-checklist.v2.md"] },
+          { "key": "rollback-procedure", "title": "Rollback Procedure", "tags": [["priority", "high"]],
+            "attachments": ["rollback.sh"] },
+          { "key": "incident-response", "title": "Incident Response", "tags": [] }
+        ]},
+        { "page": { "key": "on-call-contacts", "title": "On-call Contacts", "tags": [] } }
+      ]
+    },
+    {
+      "key": "onboarding",
+      "name": "Onboarding",
+      "description": "Everything a new team member needs in their first weeks.",
+      "tags": [["team", "people"], ["audience", "internal"]],
+      "contents": [
+        { "chapter": "First Week", "description": "Your first five days.", "pages": [
+          { "key": "getting-started", "title": "Getting Started", "tags": [["status", "published"]] },
+          { "key": "accounts-and-tools", "title": "Accounts and Tools", "tags": [] },
+          { "key": "production-access", "title": "Production Access", "tags": [["priority", "high"]] }
+        ]},
+        { "chapter": "Learning", "description": "Understanding the product and codebase.", "pages": [
+          { "key": "codebase-tour", "title": "Codebase Tour", "tags": [], "images": ["codebase-map.png"] },
+          { "key": "team-directory", "title": "Team Directory", "tags": [] },
+          { "key": "glossary", "title": "Glossary", "tags": [] }
+        ]}
+      ]
+    },
+    {
+      "key": "hr-policies",
+      "name": "HR Policies",
+      "description": "Leave, conduct and expenses. Visible to HR and administrators only.",
+      "tags": [["team", "people"], ["audience", "internal"]],
+      "permissions": {
+        "fallback": { "inheriting": false, "view": false, "create": false, "update": false, "delete": false },
+        "roles": { "hr": { "view": true, "create": true, "update": true, "delete": false } }
+      },
+      "contents": [
+        { "chapter": "Leave", "description": "Time off.", "pages": [
+          { "key": "annual-leave", "title": "Annual Leave", "tags": [["status", "published"]],
+            "revisions": ["annual-leave.v1.md", "annual-leave.v2.md"] },
+          { "key": "sick-leave", "title": "Sick Leave", "tags": [["status", "published"]] }
+        ]},
+        { "chapter": "Conduct and Expenses", "description": "How we behave and what we can claim.", "pages": [
+          { "key": "code-of-conduct", "title": "Code of Conduct", "tags": [["status", "published"]] },
+          { "key": "expense-policy", "title": "Expense Policy", "tags": [["status", "published"]],
+            "attachments": ["expense-claim-template.csv"] }
+        ]}
+      ]
+    },
+    {
+      "key": "release-notes",
+      "name": "Release Notes",
+      "description": "Changes in each Northwind platform release.",
+      "tags": [["team", "product"], ["audience", "external"]],
+      "contents": [
+        { "page": { "key": "release-notes-v2-10", "title": "Release Notes v2.10", "tags": [["status", "published"]] } },
+        { "page": { "key": "release-notes-v2-9", "title": "Release Notes v2.9", "tags": [["status", "published"]] } },
+        { "page": { "key": "release-notes-v2-1", "title": "Release Notes v2.1", "tags": [["status", "published"]] } },
+        { "page": { "key": "upcoming-deprecations", "title": "Upcoming Deprecations", "tags": [["status", "draft"]] } },
+        { "chapter": "Archive", "description": "Releases before v2.", "pages": [
+          { "key": "release-notes-v1-0", "title": "Release Notes v1.0", "tags": [["status", "deprecated"]] }
+        ]}
+      ]
+    },
+    {
+      "key": "roadmap",
+      "name": "Roadmap",
+      "description": "Planned work for 2027. Not visible to the Viewer role.",
+      "tags": [["team", "product"], ["audience", "internal"]],
+      "permissions": {
+        "fallback": { "inheriting": true },
+        "roles": { "Viewer": { "view": false, "create": false, "update": false, "delete": false } }
+      },
+      "contents": [
+        { "chapter": "2027 H1", "description": "First half of 2027.", "pages": [
+          { "key": "q1-priorities", "title": "Q1 Priorities", "tags": [["status", "draft"]], "images": ["q1-timeline.png"] },
+          { "key": "q2-priorities", "title": "Q2 Priorities", "tags": [["status", "draft"]] }
+        ]},
+        { "chapter": "Research", "description": "Inputs to planning.", "pages": [
+          { "key": "customer-feedback-summary", "title": "Customer Feedback Summary", "tags": [] }
+        ]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+- [ ] Tests pass
+- [ ] Deployed to staging
+- [ ] Deploy to production

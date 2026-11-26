@@ -13,4 +13,4 @@ Tools compared: Kane CLI and Claude Code with Playwright MCP. Apps under test: B
 | `tests/` | Test cases, written once and given to every tool |
 | `harness/` | Scripts that run the tools and record results |
 | `results/` | Run outputs (not committed) |
-| `ENVIRONMENT.md` | Tool versions, settings and the machine the benchmark runs on |
+| `BENCHMARKING-REPORT.md` | **Source of truth:** decisions, environment, app setup, bugs, tests, results and work log |
