@@ -2,7 +2,7 @@
 
 The single source of truth for this benchmark: what was decided, how everything was set up, and the results. Every step is recorded here as it happens. If it is not in this file, it is not part of the benchmark.
 
-**Status (2026-11-26):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is running, seeded and verified to the cent, with a 5–6 second reset. Bug design done (30 bugs); bug framework and all 10 pilot bugs (5 per app) built and verified; the 10 pilot tests written with measured values. The harness is not started. No benchmark runs yet.
+**Status (2026-11-27):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is running, seeded and verified to the cent, with a 5–6 second reset. Bug design done (30 bugs); bug framework and all 10 pilot bugs (5 per app) built and verified; the 10 pilot tests written with measured values. Harness written and dry-run; Claude Code isolation verified. No benchmark runs yet; next is the 4-run smoke test. No benchmark runs yet.
 
 ## Contents
 
@@ -33,6 +33,12 @@ Newest first.
 
 | Date | Decision | Reason |
 | --- | --- | --- |
+| 2026-11-27 | Versions frozen: Kane CLI 0.10.11, Claude Code 2.1.332, Opus 5.5, Playwright MCP 0.0.86 | Every run uses the same versions; newer releases are noted in the work log but not used |
+| 2026-11-27 | Kane CLI upgraded to 0.10.11 (from 0.10.9) | Released 2026-11-26, before any benchmark run; benchmark the latest release |
+| 2026-11-27 | Headline numbers use default settings for both tools; enhanced Kane CLI settings measured and reported separately | Shows what a new user gets, and what tuning adds |
+| 2026-11-27 | Kane CLI runs go to a dedicated Test Manager folder, "Benchmarking" | Keeps benchmark runs apart from other work |
+| 2026-11-27 | Claude Code runs on Opus 5.5 (`claude-opus-5-5`), named explicitly on every run | Results name the exact model, and do not change if the account default changes |
+| 2026-11-27 | Smaller check before the full run: 4-run smoke test, then the 10 tests once (40 runs), instead of the 120-run plan | Catches bad tests and harness problems at a third of the cost |
 | 2026-11-26 | Pilot of 10 bugs first, for analysis only; the report's metrics come from the full 30-bug run | Check cost and the harness before building everything |
 | 2026-11-26 | Held-out variants for about 8 of the 30 bugs | Prevents tuning to the public bug list; a credibility check |
 | 2026-11-26 | 30 bugs (15 per app), one test each; silent failure added as a 7th type | Covers all types on both apps; silent failure is the strongest false-pass trap |
@@ -62,8 +68,9 @@ Recorded 2026-11-26. Update this section whenever anything changes.
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| Kane CLI (`@testmuai/kane-cli`) | 0.10.9 (released 2026-11-24) | Model in config: `v16-alpha`. Models run on TestMu servers and may change independently of the CLI version. |
-| Claude Code | 2.1.332 | Playwright MCP version recorded when installed |
+| Kane CLI (`@testmuai/kane-cli`) | **0.10.11** (released 2026-11-26), **frozen** for the whole benchmark | Model in config: `v16-alpha`. Models run on TestMu servers and may change independently of the CLI version. |
+| Claude Code | 2.1.332 | Model: Opus 5.5 (`claude-opus-5-5`), named explicitly in every run |
+| Playwright MCP (`@playwright/mcp`) | 0.0.86 | Installed 2026-11-27 into `harness/` (exact version); uses the installed Google Chrome 158.0.8127.89, no separate browser download |
 
 ### Kane CLI profile at setup
 
@@ -80,6 +87,7 @@ The harness will set these explicitly on every run rather than rely on the profi
 | target | desktop |
 | env | prod |
 | auth | oauth |
+| Test Manager project / folder | KaneAI Generated / Benchmarking (`01M8DZ2KKNFPY0CQT31MYG6GCS`), set 2026-11-27 |
 
 ### Machine
 
@@ -97,6 +105,19 @@ The harness will set these explicitly on every run rather than rely on the profi
 | Date | Kane CLI balance | Note |
 | --- | --- | --- |
 | 2026-11-26 | 379.37 | At setup, before any benchmark runs |
+| 2026-11-27 | 10,379.37 | 10,000 credits added for the benchmark; still before any benchmark runs |
+
+**Estimate (2026-11-27), before any benchmark run.** From 525 earlier Kane CLI runs on this machine (versions 0.8.20–0.8.23, logged `credits_consumed`): median 17.1 credits per run, median 8 steps, about 2.2 credits per step. The benchmark tests are longer (login plus checks), likely 10–20 steps, so about 17–35 credits per run. The smoke test will measure the real figure for 0.10.11 by comparing the balance before and after.
+
+| Part | Kane CLI runs | Credits at 17–35 per run |
+| --- | --- | --- |
+| Smoke test | 2 | 35–70 |
+| Check: 10 tests once | 20 | 340–700 |
+| Full run: 30 tests × 2 builds × 3 repeats (5 repeats) | 180 (300) | 3,100–6,300 (5,100–10,500) |
+| Held-out variants: 8 × 2 builds × 3 | 48 | 800–1,700 |
+| Enhanced settings: 30 × 2 builds × 1 | 60 | 1,000–2,100 |
+| Reruns for errors, about 10% | ~30 | 500–1,000 |
+| **Total** | **~340 (~460)** | **about 5,800–11,900 (7,800–16,000)** |
 
 ## 4. Apps under test
 
@@ -445,7 +466,94 @@ Notes from measuring:
 
 ## 7. Harness and run settings
 
-Not yet built.
+The harness is `harness/run.py` (section 7.3). This section records the rules and settings it applies.
+
+### 7.1 Fairness and keeping the answers hidden
+
+1. **Neither tool can see this repository.** Each run starts in a new, empty working folder outside the repo. The seeded bugs, their answer key (`bug.json`) and the test front matter are never available to the tool.
+2. **Claude Code gets browser tools only.** It is limited to the Playwright MCP tools (`mcp__playwright__*`). It has no file reading, no shell and no web search, so it cannot open `bugs/` or look anything up.
+3. **Kane CLI's `bugs` command is never used.** It would tell the agent about the seeded bugs.
+4. **Both tools get the same test text, word for word.** Only the text under `## Test` is given. Passwords are filled in at run time and never appear in the test text or the repo: Kane CLI gets them as a secret variable (`--variables-file`, marked secret so it is not synced to Test Manager); Claude Code types the placeholder `BENCH_PASSWORD`, which Playwright MCP replaces with the real password (`--secrets`), so the model never sees it.
+5. **Claude Code's extra instructions are kept minimal and published here word for word** once written: only what it needs to act as a tester and end with `VERDICT: PASS` or `VERDICT: FAIL`.
+6. **Same browser and screen for both tools.** The installed Google Chrome, headless, 1920×1080, with a fresh profile on every run.
+7. **Same limits for both tools.** 50 steps (Kane CLI) or 50 turns (Claude Code), and 10 minutes per run.
+8. **Fresh app state on every run.** `bugs/apply.sh` resets the app and confirms the bug is on (or that the build is clean) before each run. A run whose check fails is not started.
+9. **Shuffled run order with a fixed seed.** Neither tool always runs first, at the same time of day or with warm caches. The seed is recorded, so the order can be repeated.
+10. **Default settings for the headline numbers.** Both tools run as a new user gets them. Other settings are reported separately (7.4).
+
+### 7.2 Run settings agreed
+
+| Item | Kane CLI | Claude Code + Playwright MCP |
+| --- | --- | --- |
+| Version | 0.10.11 (frozen) | Claude Code 2.1.332, `@playwright/mcp` 0.0.86 (pinned in `harness/package.json`) |
+| Model | `v16-alpha` (Kane CLI's own) | Opus 5.5 (`claude-opus-5-5`), set explicitly on every run |
+| Settings | Out-of-the-box defaults: testing mode, DOM assertions, final validation off, bug detection off | Claude Code defaults |
+| Verdict | Exit code 0 = PASS, 1 = FAIL (2 error, 3 timeout) | Last line `VERDICT: PASS` or `VERDICT: FAIL` |
+| Where results go | Kane CLI uploads every run to TestMu Test Manager, project "KaneAI Generated", folder **Benchmarking** (id `01M8DZ2KKNFPY0CQT31MYG6GCS`) | Stays local |
+
+### 7.3 The harness
+
+`harness/run.py` (Python standard library only) runs every (test × build × tool × repeat) in a shuffled order with a fixed seed (default 20261127). For each run it:
+
+1. runs `bugs/apply.sh <app> clean|<bug>`; if the check fails the run is recorded as `SETUP_ERROR` and the tool is not started;
+2. starts the tool from a new, empty folder outside the repo, which is deleted afterwards;
+3. writes one line to `results/<timestamp>-<label>/runs.jsonl` and keeps the tool's raw output.
+
+It refuses to start if any tool differs from the frozen versions.
+
+**Kane CLI command** (every flag set explicitly, all at their default values):
+
+```
+kane-cli run "<test text>" --url <start_url> --agent --headless --max-steps 50 --timeout 600 --mode testing --assertion-mode dom --final-validation off --bug-detection off --variables-file <temp>/variables.json --chrome-profile <temp>/chrome-profile --name <run-id>
+```
+
+Verdict from the exit code: 0 PASS, 1 FAIL, 2 error, 3 timeout. Steps and credits come from the run's `run_end` event.
+
+**Claude Code command:**
+
+```
+claude -p "<instructions + test text>" --model claude-opus-5-5 --output-format stream-json --verbose --max-turns 50 --tools "" --mcp-config <temp>/mcp.json --strict-mcp-config --allowedTools "mcp__playwright__*" --permission-mode dontAsk --setting-sources project --disable-slash-commands --no-session-persistence
+```
+
+| Flag | Why |
+| --- | --- |
+| `--tools ""` | No built-in tools: no file reading, shell or web search |
+| `--strict-mcp-config` + `--mcp-config` | Playwright MCP is the only tool server; no other servers or connectors |
+| `--permission-mode dontAsk` + `--allowedTools` | Browser tools run without prompts; anything else is refused |
+| `--setting-sources project` | The user's own settings, hooks and plugins are not loaded (the run folder is empty) |
+| `--disable-slash-commands` | No skills |
+| `--max-turns 50` | Same limit as Kane CLI's 50 steps |
+
+Playwright MCP runs as `node harness/node_modules/@playwright/mcp/cli.js --browser chrome --headless --isolated --viewport-size 1920x1080 --secrets <temp>/secrets.env --output-dir <run folder>/playwright`.
+
+**Isolation check (2026-11-27).** One session started with these exact flags reported: 25 tools, all Playwright MCP; one MCP server (playwright); no skills; no slash commands; only Claude Code's built-in plugins. The harness repeats this check on every run from the session's start event and records any run with another tool as `ISOLATION_ERROR` (not counted).
+
+**Claude Code's instructions, word for word** (`harness/claude-instructions.md`; `{start_url}` and `{test_text}` are filled in per test):
+
+```
+You are a QA tester. Run the test below in the web browser, using only the browser tools you have.
+
+- Start at {start_url}.
+- Do every step through the page, as a real user would.
+- Wherever the test says {{password}}, type the text BENCH_PASSWORD. The browser tool replaces it with the real password.
+- Check every expected result the test states. The test passes only if all of them hold.
+
+When you are done, end your reply with two lines: one sentence giving the reason, then exactly one of these:
+VERDICT: PASS
+VERDICT: FAIL
+
+## Test
+
+{test_text}
+```
+
+A Claude Code reply without a `VERDICT:` line is recorded as an error.
+
+**Not yet verified:** which browser Kane CLI launches (to be checked during the smoke test).
+
+### 7.4 Settings that may improve results
+
+Kane CLI has options that are off by default and may make it more accurate, for example `--final-validation` (a final check of the whole objective), `--assertion-mode visual` (checks against screenshots instead of the page structure) and `--bug-detection`. These will be measured after the default runs and reported separately as "with enhanced settings", including any extra time and credits. The headline numbers stay on defaults.
 
 ## 8. Results
 
@@ -457,6 +565,11 @@ Newest first.
 
 | Date | Step | What was done |
 | --- | --- | --- |
+| 2026-11-27 | Harness | Wrote `harness/run.py`, `claude-instructions.md` and `README.md`; dry run of the smoke test; Claude Code isolation check passed (Playwright tools only, no skills, no other servers) |
+| 2026-11-27 | Kane CLI 0.10.11 | Upgraded 0.10.9 → 0.10.11 and froze it; profile settings unchanged; every `run` flag the harness needs is still there; changelog has no changes to how tests run |
+| 2026-11-27 | Kane CLI folder | Set the Kane CLI profile's Test Manager folder to Benchmarking; all Kane CLI runs go there |
+| 2026-11-27 | Credit estimate | Estimated Kane CLI credits for the project from 525 earlier runs' logs (section 3, Credits); the balance covers only the smoke test and part of the 40-run check |
+| 2026-11-27 | Harness prep | Recorded fairness rules and agreed run settings (section 7); installed `@playwright/mcp` 0.0.86 into `harness/`; confirmed Claude Code's default model; created the Test Manager folder "Benchmarking" |
 | 2026-11-26 | Pilot tests | Measured every asserted value on the clean build (and bug-side values for the review notes); wrote `tests/README.md` and the 10 pilot tests |
 | 2026-11-26 | Bugs: PrestaShop pilot | Wrote `bugs/lib/prestashop.sh`, `bugs/lib/ps-bootstrap.php`, `bugs/prestashop/probe.php`, `check-clean.sh`; reset now removes overrides; built and verified PS-01, 03, 05, 08, 11, including storefront checks with clean controls |
 | 2026-11-26 | Bugs: framework + BookStack pilot | Wrote `bugs/apply.sh`, `bugs/lib/bookstack.sh`, `check-clean.sh`; set `APP_THEME=bench` and made reset empty the theme folder; built and verified BS-01, 03, 05, 07, 11 with clean controls |

@@ -1,0 +1,8 @@
+{
+  "name": "kane-cli-benchmarks-harness",
+  "private": true,
+  "description": "Pinned tool versions for the benchmark harness",
+  "dependencies": {
+    "@playwright/mcp": "0.0.86"
+  }
+}

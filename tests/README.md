@@ -29,7 +29,7 @@ Only the text under `## Test` is given to the tools. The front matter is for the
 
 1. **Never hint at the bug.** The text reads like a normal QA test written from the specification.
 2. **Exact expected values.** Amounts, names and messages are stated precisely, using the app's own on-screen wording, and were measured on the clean build.
-3. **Passwords are placeholders.** The text says `{{password}}`; the harness fills in the app's `USER_PASSWORD` from its `.env` (Kane CLI through `--variables`, Claude Code in its prompt). No password is stored in this repository.
+3. **Passwords are placeholders.** The text says `{{password}}`; the harness supplies the app's `USER_PASSWORD` from its `.env` as a secret (Kane CLI through a secret variable, Claude Code through Playwright MCP's secrets file), so it never appears in the test text. No password is stored in this repository.
 4. **Real user steps.** Apart from the start URL, everything is done through the UI as a user would.
 5. **One test, one bug.** A test checks what its bug breaks, and passes on the clean build.
 
