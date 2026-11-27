@@ -1,0 +1,11 @@
+{
+  "id": "BS-05",
+  "app": "bookstack",
+  "type": "Wrong navigation",
+  "severity": 3,
+  "title": "Onboarding's 'Getting Started' opens the API Guide's 'Getting Started' page",
+  "clean": "Opening Getting Started in the Onboarding book shows the first-day checklist (collect laptop from the IT desk on floor 3, meet buddy at 11:00).",
+  "with_bug": "It shows the API Guide's Getting Started page instead (base URL, first API request), a lookalike with the same title.",
+  "test": "T-BS-05",
+  "mechanism": "Theme functions.php (web_middleware_before): requests for /books/onboarding/page/getting-started are redirected to /books/api-guide/page/getting-started."
+}

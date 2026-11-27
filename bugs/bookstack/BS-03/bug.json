@@ -1,0 +1,11 @@
+{
+  "id": "BS-03",
+  "app": "bookstack",
+  "type": "Silent failure",
+  "severity": 5,
+  "title": "Saving an edited page shows success but the change is lost",
+  "clean": "After editing a page and clicking Save Page, the page shows the new content and the notice 'Page successfully updated'.",
+  "with_bug": "The notice 'Page successfully updated' appears, but the page still shows the old content; nothing was saved.",
+  "test": "T-BS-03",
+  "mechanism": "Theme functions.php (web_middleware_before): a page update request is answered with BookStack's success notice and a redirect back to the page, without saving."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "PS-11",
+  "app": "prestashop",
+  "type": "Action does nothing",
+  "severity": 3,
+  "title": "The cart's remove button does nothing",
+  "clean": "Clicking remove on a cart line takes the product out of the cart and the totals update.",
+  "with_bug": "Clicking remove does nothing: the product stays in the cart and the totals do not change.",
+  "test": "T-PS-11",
+  "mechanism": "Override controllers/front/CartController.php: processDeleteProductInCart() does nothing."
+}

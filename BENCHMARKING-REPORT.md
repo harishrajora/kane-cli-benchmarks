@@ -2,7 +2,7 @@
 
 The single source of truth for this benchmark: what was decided, how everything was set up, and the results. Every step is recorded here as it happens. If it is not in this file, it is not part of the benchmark.
 
-**Status (2026-11-26):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is running, seeded and verified to the cent, with a 5–6 second reset. Bugs, tests and harness are not started. No benchmark runs yet.
+**Status (2026-11-26):** Setup in progress. BookStack is running, seeded and verified, with a 1–2 second reset. PrestaShop 9.2.1 is running, seeded and verified to the cent, with a 5–6 second reset. Bug design done (30 bugs); bug framework and all 10 pilot bugs (5 per app) built and verified; the 10 pilot tests written with measured values. The harness is not started. No benchmark runs yet.
 
 ## Contents
 
@@ -33,6 +33,10 @@ Newest first.
 
 | Date | Decision | Reason |
 | --- | --- | --- |
+| 2026-11-26 | Pilot of 10 bugs first, for analysis only; the report's metrics come from the full 30-bug run | Check cost and the harness before building everything |
+| 2026-11-26 | Held-out variants for about 8 of the 30 bugs | Prevents tuning to the public bug list; a credibility check |
+| 2026-11-26 | 30 bugs (15 per app), one test each; silent failure added as a 7th type | Covers all types on both apps; silent failure is the strongest false-pass trap |
+| 2026-11-26 | Bugs switched on through official customisation points (API settings, BookStack theme events, PrestaShop overrides), not JavaScript injection | Server-side bugs behave like real bugs everywhere; the apps' own code stays untouched |
 | 2026-11-26 | Disable PrestaShop's seven cloud and marketing modules (not uninstall) | Runs must not depend on outside services; avoids false fails from slow or failing third-party calls; checkout shows only built-in payments |
 | 2026-11-26 | PrestaShop seed: `seed.php` using PrestaShop's own classes, not raw SQL or the Webservice API | Raw SQL bypasses validation and could plant accidental bugs that skew false-fail counts; the Webservice API cannot create reliable orders or staff permissions and would need switching on |
 | 2026-11-26 | PrestaShop seed: cart scenarios included (saved cart, quantity rules, vouchers); no minimum order amount | The cart is where totals are calculated, the core of false-pass checks |
@@ -287,11 +291,157 @@ Verified after a full rebuild: all seven inactive; storefront and back-office da
 
 ## 5. Seeded bugs
 
-Not yet designed. Bug types planned (from WebTestPilot's analysis of real GitHub bug reports): missing element, wrong data or calculation, action that does nothing, wrong navigation, shown to the wrong role, validation not enforced. Crashes are excluded.
+30 bugs, 15 per app. Each has exactly one test, which passes on the clean build and should fail with the bug switched on (WebTestPilot's one-bug-per-test design). The test text never mentions the bug. Files: `bugs/` (see `bugs/README.md`).
+
+### 5.1 What the tool under test must do
+
+For each run the tool receives one written test case in plain English, runs it in a real browser, and returns PASS or FAIL. It does not know whether it faces the clean build or a bug. It is not asked to hunt for bugs without a test, write tests, diagnose causes or fix anything; Kane CLI's `--bug-detection` and `kane-cli bugs` are not used.
+
+| App state | Tool says | Counted as |
+| --- | --- | --- |
+| Clean | PASS | Correct |
+| Clean | FAIL | False fail |
+| Bug on | FAIL | Bug caught (plus a human check that the failure reason points at the bug) |
+| Bug on | PASS | False pass |
+
+### 5.2 How bugs are switched on
+
+Only the apps' official customisation points are used; the apps' own code is never edited. Server-side bugs were chosen over JavaScript injection (WebTestPilot's method) because injected JavaScript only changes what is drawn: saved data, emails and later pages stay correct, which no real bug does.
+
+| App | Mechanism | Clean build |
+| --- | --- | --- |
+| BookStack | A setting or data change through the REST API, or a theme `functions.php` using BookStack's documented theme events (`APP_THEME=bench`) | Theme folder `bench` is empty |
+| PrestaShop | A setting change through PrestaShop's own classes, or an official override | No overrides |
+
+`bugs/apply.sh <app> <clean|BUG-ID>` resets the app, switches the bug on, then runs the bug's `check.sh` to confirm it is active; if the check fails it resets again and exits with an error, so a run never starts on the wrong build. `clean` runs `check-clean.sh` instead. This guards against counting a correct PASS as a false pass because a bug silently failed to apply.
+
+Setup change for this: BookStack's container now sets `APP_THEME=bench`, and its `reset.sh` empties the `bench` theme folder. On the clean build the folder is empty, so BookStack behaves as stock; `check-clean.sh` confirms the folder is empty, the Viewer cannot open Roadmap, and `rollback.sh` is attached to Rollback Procedure.
+
+### 5.3 Bug types
+
+| Type | BookStack | PrestaShop | Total |
+| --- | --- | --- | --- |
+| Wrong data or calculation | 2 | 6 | 8 |
+| Shown to the wrong role | 3 | 2 | 5 |
+| Validation not enforced | 2 | 3 | 5 |
+| Missing element | 3 | 1 | 4 |
+| Wrong navigation | 2 | 1 | 3 |
+| Action does nothing | 2 | 1 | 3 |
+| Silent failure (success shown, nothing saved) | 1 | 1 | 2 |
+| **Total** | **15** | **15** | **30** |
+
+The first six types come from WebTestPilot's analysis of real GitHub bug reports. Silent failure was added because it is the strongest false-pass trap: the page says it worked. Crashes are excluded: any tool catches them.
+
+Severity: 5 critical, 3 major, 1 minor.
+
+### 5.4 The 30 bugs
+
+| ID | Type | Bug | Sev | Status |
+| --- | --- | --- | --- | --- |
+| BS-01 | Wrong role | Vera (Viewer) can see and open the Roadmap book | 5 | Built (pilot) |
+| BS-02 | Wrong role | Editors can open HR Policies pages by URL, though the list hides them | 5 | Planned |
+| BS-03 | Silent failure | Editing a page shows "Page successfully updated" but the change is lost | 5 | Built (pilot) |
+| BS-04 | Wrong data | Rate Limits shows an old revision instead of the latest | 3 | Planned |
+| BS-05 | Wrong navigation | Onboarding's "Getting Started" opens the API Guide's "Getting Started" | 3 | Built (pilot) |
+| BS-06 | Wrong navigation | The v2.10 Release Notes link opens v2.1 | 3 | Planned |
+| BS-07 | Missing element | Rollback Procedure's attachment `rollback.sh` is missing | 3 | Built (pilot) |
+| BS-08 | Missing element | The architecture image on Production is broken | 1 | Planned |
+| BS-09 | Wrong data | Searching "rate limit" does not return the Rate Limits page | 3 | Planned |
+| BS-10 | Action does nothing | Restoring a page revision does nothing | 3 | Planned |
+| BS-11 | Validation | A page can be saved with an empty title | 3 | Built (pilot) |
+| BS-12 | Missing element | Page tags are not displayed | 1 | Planned |
+| BS-13 | Action does nothing | Favouriting a page does nothing | 3 | Planned |
+| BS-14 | Wrong role | Hana (HR) can edit the Deployment Runbook (should only view) | 5 | Planned |
+| BS-15 | Validation | An admin can create a user with an invalid email address | 3 | Planned |
+| PS-01 | Wrong calculation | Tax is 0.8% instead of 8% | 5 | Built (pilot) |
+| PS-02 | Wrong calculation | BENCH10 is applied twice (20% off) | 5 | Planned |
+| PS-03 | Wrong calculation | Order total is off by $0.01 (rounding) | 3 | Built (pilot) |
+| PS-04 | Wrong calculation | Free shipping is not applied over $50 | 3 | Planned |
+| PS-05 | Validation | The EXPIRED voucher is accepted | 5 | Built (pilot) |
+| PS-06 | Validation | The out-of-stock mug can be ordered | 3 | Planned |
+| PS-07 | Validation | The minimum-2 mug can be bought singly | 3 | Planned |
+| PS-08 | Wrong role | Casey (regular customer) gets the Wholesale 15% discount | 5 | Built (pilot) |
+| PS-09 | Wrong role | Sam Sales can change product prices in the back office | 5 | Planned |
+| PS-10 | Wrong data | Casey's order history shows another customer's order | 5 | Planned |
+| PS-11 | Action does nothing | The cart's remove button does nothing | 3 | Built (pilot) |
+| PS-12 | Silent failure | Casey's saved cart is not restored after login | 3 | Planned |
+| PS-13 | Wrong navigation | "Brown bear cushion" in the product list opens "Mountain fox cushion" | 3 | Planned |
+| PS-14 | Missing element | The Express shipping option is missing at checkout | 3 | Planned |
+| PS-15 | Wrong data | Wes's order shows "Delivered" although it awaits payment | 3 | Planned |
+
+Full run: 30 tests × 2 builds = 60 expected verdicts per tool per repeat.
+
+### 5.5 Pilot bugs built
+
+Each was tested in three states: clean (control), bug on, clean again.
+
+#### BookStack
+
+Applying any state, including the reset, takes 2–4 seconds.
+
+| ID | How it is switched on | Check before every run | Verified behaviour |
+| --- | --- | --- | --- |
+| BS-01 | API: Roadmap permission for Viewer set to view | Vera opens `/books/roadmap`: 200 (clean: 404) | Vera sees and opens Roadmap |
+| BS-03 | Theme: page updates answered with the success notice and a redirect, without saving | Theme file present; a real update leaves the page name unchanged | "Page successfully updated" shown; name still "Glossary". Control on clean: the same update renamed the page |
+| BS-05 | Theme: Onboarding's Getting Started redirected to the API Guide's | Theme file present; redirect target is the API Guide page | Page shows the API base URL instead of "IT desk on floor 3" |
+| BS-07 | API: attachment moved to Incident Response | The Rollback Procedure page has no `rollback.sh` attachment entry (the page text still mentions the file, by design) | 0 attachment entries on Rollback Procedure, 1 on Incident Response; clean: 1 on Rollback Procedure |
+| BS-11 | Theme: empty title replaced by an invisible character before validation | Theme file present (a save-based check would create a page right before the test) | Verified once on 2026-11-26: clean refuses the save and returns to the editor; with the bug the page is saved at `/page/04511` with a blank title |
+
+#### PrestaShop
+
+Applying any state, including the reset, takes 4–9 seconds.
+
+`reset.sh` now also deletes everything in `override/` except its `index.php`, then clears the cache, which holds PrestaShop's list of active overrides. Checks use `bugs/prestashop/probe.php`, which reads the shop facts the bugs change (tax rate, Casey's group, a 1-mug cart's totals, whether `EXPIRED` is accepted). Its carts are deleted straight after measuring: otherwise PrestaShop would restore the probe's cart instead of Casey's saved cart when a test logs her in. Verified: Casey's most recent cart is still her saved cart after a probe.
+
+`check-clean.sh` confirms: no override files; tax rate 8; Casey's default group is Customer; the 1-mug cart is products $11.90, tax $0.95, shipping $5.00, total $17.85; `EXPIRED` is refused.
+
+| ID | How it is switched on | Check before every run | Verified behaviour (storefront, with clean control) |
+| --- | --- | --- | --- |
+| PS-01 | Setting: "US Sales Tax" rate 8 → 0.8 (Tax class) | Probe: rate 0.8; 1-mug cart tax $0.10, total $17.00 | Cart computes 0.8% tax |
+| PS-03 | Override `classes/Cart.php`: grand total with tax + $0.01 | Override file present; 1-mug cart parts unchanged, total $17.86 | Casey's cart page shows $54.16 (clean $54.15) |
+| PS-05 | Override `classes/CartRule.php`: end-date check skipped | Override file present; probe finds `EXPIRED` accepted | Entering `EXPIRED` on the cart page is accepted and the total drops (clean: "This voucher has expired", total unchanged) |
+| PS-08 | Data: Casey added to Wholesale, made her default group (Customer class) | Probe: default group Wholesale; 1-mug cart products $10.12 | Prices 15% lower for Casey |
+| PS-11 | Override `controllers/front/CartController.php`: remove does nothing | Override file present (a remove-based check would change Casey's saved cart before the test) | Clicking remove on Casey's mug leaves it in the cart at $54.15 (clean: the mug is removed) |
+
+Two details found while building:
+
+- **PrestaShop archives a tax when its rate changes.** Because past orders used "US Sales Tax", changing its rate creates a new tax with the same name and marks the old one deleted, keeping order history intact. Scripts therefore look up only the current (not deleted) tax.
+- **PS-03 reaches the placed order too:** the override changes the grand total everywhere PrestaShop computes it, so cart, checkout and order agree on the wrong amount, as a real bug would.
+
+### 5.6 Held-out variants
+
+About a quarter of the bugs (8 of 30) will get a private variant: same type and same test, different details (for example tax 7.2% instead of 0.8%, or a different lookalike pair). They stop tools, and AI models trained on public code, from being tuned to the public bug list. Published results report public and held-out bugs separately; a tool that does much better on the public bugs has likely been tuned to them. After each edition the variants are published and new ones made. Storage: to be decided (private repository or a local folder that is never committed).
+
+### 5.7 Pilot
+
+The pilot uses 10 bugs (BS-01, 03, 05, 07, 11; PS-01, 03, 05, 08, 11) to check costs, time and the harness. **Pilot results are for analysis only; the published metrics come from the full 30-bug run.**
 
 ## 6. Tests
 
-Not yet written.
+One test per bug, in `tests/<app>/T-<APP>-<NN>.md` (format and writing rules: `tests/README.md`). Only the text under `## Test` is given to the tools, word for word. Passwords appear as `{{password}}` and are filled in by the harness from each app's `.env`.
+
+Every value a test asserts was measured on the clean build through the app's own pages on 2026-11-26, using the app's on-screen wording. Where the right-reason note states a value seen with the bug, it was measured with the bug on.
+
+### 6.1 Pilot tests (10)
+
+| Test | User | What it checks | Clean build (measured) | With its bug (measured) |
+| --- | --- | --- | --- | --- |
+| T-BS-01 | Vera (Viewer) | The Books page lists exactly 4 books | API Guide, Deployment Runbook, Onboarding, Release Notes | Roadmap also listed |
+| T-BS-03 | Erin (Editor) | Renaming Glossary to "Glossary of Terms" is saved | Title changes | "Page successfully updated" shown; title stays "Glossary" |
+| T-BS-05 | Vera | Onboarding › First Week › Getting Started shows the first-day checklist | "IT desk on floor 3", buddy at 11:00 | API Guide's page (API base URL) |
+| T-BS-07 | Vera | Rollback Procedure has the attachment `rollback.sh` | Listed | Not listed (attached to Incident Response) |
+| T-BS-11 | Erin | Saving a new page with an empty title is refused | Editor stays open: "The name field is required." | Page saved with a blank title |
+| T-PS-01 | Wes (Wholesale) | Cart with 1 poster | 1 item $24.65; Shipping $5.00; Total (tax excl.) $29.65; Taxes $1.97; Total (tax incl.) $31.62 | Taxes $0.20; Total (tax incl.) $29.85 |
+| T-PS-03 | Casey | Saved cart contents and summary | 3 items $50.14; Shipping Free; Total (tax excl.) $50.14; Taxes $4.01; Total (tax incl.) $54.15 | Total (tax incl.) $54.16 |
+| T-PS-05 | Casey | Promo code `EXPIRED` is refused | "This voucher has expired"; total $54.15 | Accepted; total drops |
+| T-PS-08 | Casey | Poster price on its product page (40x60cm) | "Price: $29.00" | "Price: $24.65" |
+| T-PS-11 | Casey | Removing the mug from the cart | 2 items $38.24; Shipping $5.00; Total (tax excl.) $43.24; Taxes $3.06; Total (tax incl.) $46.30 | Mug still in the cart; $54.15 |
+
+Notes from measuring:
+
+- Removing the mug drops Casey's cart below the $50 free-shipping threshold (after tax), so Standard shipping becomes $5.00. T-PS-11 asserts this, which also exercises the threshold.
+- With PS-08 on, every product is 15% cheaper for Casey (her t-shirts show $16.25), so other Casey tests would fail too. That is expected: each bug is only ever run with its own test.
+- Two measurement mistakes of mine were caught and redone: a probe that re-sent a form after a redirect (BookStack answered "Page Expired"), and one that read the header mini-cart's prices instead of the product's own price.
 
 ## 7. Harness and run settings
 
@@ -307,6 +457,9 @@ Newest first.
 
 | Date | Step | What was done |
 | --- | --- | --- |
+| 2026-11-26 | Pilot tests | Measured every asserted value on the clean build (and bug-side values for the review notes); wrote `tests/README.md` and the 10 pilot tests |
+| 2026-11-26 | Bugs: PrestaShop pilot | Wrote `bugs/lib/prestashop.sh`, `bugs/lib/ps-bootstrap.php`, `bugs/prestashop/probe.php`, `check-clean.sh`; reset now removes overrides; built and verified PS-01, 03, 05, 08, 11, including storefront checks with clean controls |
+| 2026-11-26 | Bugs: framework + BookStack pilot | Wrote `bugs/apply.sh`, `bugs/lib/bookstack.sh`, `check-clean.sh`; set `APP_THEME=bench` and made reset empty the theme folder; built and verified BS-01, 03, 05, 07, 11 with clean controls |
 | 2026-11-26 | PrestaShop modules | Added module disabling to `seed.sh`; full rebuild from scratch (install, post-install, seed, snapshot) succeeded; verified modules off, pages load, payment options, all 22 cart checks |
 | 2026-11-26 | PrestaShop seed, verify, reset | Seeded after four fixes, each followed by a clean reinstall; verified 22 cart checks to the cent, logins and the saved cart; wrote `verify.sh`, `snapshot.sh`, `reset.sh`; took the snapshot; reset tested |
 | 2026-11-26 | PrestaShop seed (prepared) | Wrote `seed/structure.json`, `seed/seed.php` and `seed.sh`; syntax-checked with the container's PHP |

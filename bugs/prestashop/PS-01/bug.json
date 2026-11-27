@@ -1,0 +1,11 @@
+{
+  "id": "PS-01",
+  "app": "prestashop",
+  "type": "Wrong data or calculation",
+  "severity": 5,
+  "title": "Sales tax is 0.8% instead of 8%",
+  "clean": "A cart with 1 x Mug The adventure begins ($11.90) and Standard shipping: tax $0.95, total $17.85.",
+  "with_bug": "Same cart: tax $0.10, total $17.00.",
+  "test": "T-PS-01",
+  "mechanism": "Setting: the 'US Sales Tax' rate is changed from 8 to 0.8 through PrestaShop's Tax class."
+}

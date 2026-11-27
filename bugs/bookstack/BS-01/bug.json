@@ -1,0 +1,11 @@
+{
+  "id": "BS-01",
+  "app": "bookstack",
+  "type": "Shown to the wrong role",
+  "severity": 5,
+  "title": "Viewer can see and open the Roadmap book",
+  "clean": "Vera Viewer does not see Roadmap on the Books page, and its URL returns 'not found'.",
+  "with_bug": "Vera Viewer sees Roadmap on the Books page and can open its pages.",
+  "test": "T-BS-01",
+  "mechanism": "Setting: the Roadmap book's permission for the Viewer role is changed from no access to view (REST API, content-permissions)."
+}

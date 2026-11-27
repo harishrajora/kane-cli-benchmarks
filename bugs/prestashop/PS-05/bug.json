@@ -1,0 +1,11 @@
+{
+  "id": "PS-05",
+  "app": "prestashop",
+  "type": "Validation not enforced",
+  "severity": 5,
+  "title": "An expired voucher is accepted",
+  "clean": "Entering the code EXPIRED in the cart is refused with 'This voucher has expired'.",
+  "with_bug": "EXPIRED is accepted and takes 15% off, although it ended on 2026-06-30.",
+  "test": "T-PS-05",
+  "mechanism": "Override classes/CartRule.php: checkValidity() skips the end-date check. The voucher's end date is unchanged."
+}

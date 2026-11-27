@@ -1,0 +1,11 @@
+{
+  "id": "PS-08",
+  "app": "prestashop",
+  "type": "Shown to the wrong role",
+  "severity": 5,
+  "title": "Casey, a regular customer, gets the Wholesale 15% discount",
+  "clean": "Logged in as Casey, Framed poster 'The best is yet to come' costs $29.00 (before tax).",
+  "with_bug": "Logged in as Casey it costs $24.65: the Wholesale group's 15% discount is applied.",
+  "test": "T-PS-08",
+  "mechanism": "Data: Casey is added to the Wholesale group and it becomes her default group (Customer class)."
+}

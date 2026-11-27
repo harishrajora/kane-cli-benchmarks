@@ -1,0 +1,11 @@
+{
+  "id": "BS-07",
+  "app": "bookstack",
+  "type": "Missing element",
+  "severity": 3,
+  "title": "Rollback Procedure's attachment rollback.sh is missing",
+  "clean": "The Rollback Procedure page lists the attachment rollback.sh, which step 2 of the procedure tells you to run.",
+  "with_bug": "Rollback Procedure has no attachments; rollback.sh is attached to the Incident Response page instead.",
+  "test": "T-BS-07",
+  "mechanism": "Data: the attachment's page is changed from Rollback Procedure to Incident Response (REST API, attachments)."
+}

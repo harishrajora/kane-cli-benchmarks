@@ -1,0 +1,11 @@
+{
+  "id": "BS-11",
+  "app": "bookstack",
+  "type": "Validation not enforced",
+  "severity": 3,
+  "title": "A page can be saved with an empty title",
+  "clean": "Saving a new or edited page with the title left empty is refused with the error 'The name field is required.' and nothing is saved.",
+  "with_bug": "The page is saved with a blank title.",
+  "test": "T-BS-11",
+  "mechanism": "Theme functions.php (web_middleware_before): an empty page title is replaced by an invisible zero-width space before BookStack's validation runs."
+}

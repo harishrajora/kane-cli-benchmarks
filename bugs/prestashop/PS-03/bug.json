@@ -1,0 +1,11 @@
+{
+  "id": "PS-03",
+  "app": "prestashop",
+  "type": "Wrong data or calculation",
+  "severity": 3,
+  "title": "Order total is $0.01 too high",
+  "clean": "A cart with 1 x Mug The adventure begins ($11.90) and Standard shipping: products $11.90 + shipping $5.00 + tax $0.95 = total $17.85.",
+  "with_bug": "Same cart: products, shipping and tax unchanged, but the total is $17.86. Cart, checkout and the placed order all show the wrong total.",
+  "test": "T-PS-03",
+  "mechanism": "Override classes/Cart.php: getOrderTotal() adds $0.01 to the tax-inclusive grand total (type BOTH). Deliberately subtle."
+}
